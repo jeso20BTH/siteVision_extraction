@@ -1,0 +1,5 @@
+/node_modules
+/files/bash_config.data
+/modules/config.json
+/modules/config_url.json
+/sql/variables.sql
