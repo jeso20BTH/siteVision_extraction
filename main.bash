@@ -67,29 +67,56 @@ function choice-1
     printf "%s" "  Username:      "
     read -r user
     printf "%s" "  Password:      "
-    read -r pass
+
+    # Read password with censoring
+    unset password;
+    while IFS= read -r -s -n1 pass; do
+        if [[ -z $pass ]]; then
+            echo
+            break
+        else
+            echo -n '*'
+            password+=$pass
+        fi
+    done
+
     printf "%s" "  Port:          "
     read -r port
     printf "%s" "  Host:          "
     read -r host
+    printf "%s\\n%s" "  Enter username and password for user allowed to create a database" "    Username:          "
+    read -r rootuser
+    printf "%s" "    Password:          "
+
+    # Read password with censoring
+    unset rootpassword;
+    while IFS= read -r -s -n1 pass; do
+        if [[ -z $pass ]]; then
+            echo
+            break
+        else
+            echo -n '*'
+            rootpassword+=$pass
+        fi
+    done
 
     # Create config-file for the database
-    echo 'Creating SQL config file............................[5/8]'
-    config-sql "$database" "$user" "$pass"
+    printf "%s\\n" 'Creating SQL config file............................[5/8]'
+    config-sql "$database" "$user" "$password"
 
     # Setup database
     echo 'Seting up the database..............................[6/8]'
     cd sql/
-    mariadb <'00_setup_database.sql'
+    mariadb --user="$rootuser" --password="$rootpassword" <'00_setup_database.sql'
     cd ..
 
     # Generate file used for db-connection
     echo 'Setting up the JSON config for JavaScript program...[7/8]'
-    config-json $host $port $user $pass $database
+    config-json $host $port $user $password $database
 
     # Create file used by bash-script to access db
     echo 'Setting up the bash config for the bash script......[8/8]'
-    config-bash $database $user $pass
+    config-bash $database $user $password
 }
 
 # Run the program that extract data from sitevision
@@ -184,15 +211,25 @@ function config-bash
         printf "%s" "  Username:      "
         read -r user
         printf "%s" "  Password:      "
-        read -r pass
+        # Read password with censoring
+        unset password;
+        while IFS= read -r -s -n1 pass; do
+            if [[ -z $pass ]]; then
+                echo
+                break
+            else
+                echo -n '*'
+                password+=$pass
+            fi
+        done
     else
         database="$1"
         user="$2"
-        pass="$3"
+        password="$3"
     fi
 
     echo "db,user,pass" > 'files/bash_config.data'
-    echo "$database,$user,$pass" >> 'files/bash_config.data'
+    echo "$database,$user,$password" >> 'files/bash_config.data'
 }
 
 function sql-query
@@ -212,7 +249,19 @@ function config-json
         printf "%s" "  Username:      "
         read -r user
         printf "%s" "  Password:      "
-        read -r pass
+
+        # Read password with censoring
+        unset password;
+        while IFS= read -r -s -n1 pass; do
+            if [[ -z $pass ]]; then
+                echo
+                break
+            else
+                echo -n '*'
+                password+=$pass
+            fi
+        done
+
         printf "%s" "  Port:          "
         read -r port
         printf "%s" "  Host:          "
@@ -221,7 +270,7 @@ function config-json
         host="$1"
         port="$2"
         user="$3"
-        pass="$4"
+        password="$4"
         database="$5"
     fi
 
@@ -229,7 +278,7 @@ function config-json
     echo '    "host":     "'"$host"'",' >> 'modules/config.json'
     echo '    "port":     "'"$port"'",' >> 'modules/config.json'
     echo '    "user":     "'"$user"'",' >> 'modules/config.json'
-    echo '    "password": "'"$pass"'",' >> 'modules/config.json'
+    echo '    "password": "'"$password"'",' >> 'modules/config.json'
     echo '    "database": "'"$database"'"' >> 'modules/config.json'
     echo "}" >> 'modules/config.json'
 }
