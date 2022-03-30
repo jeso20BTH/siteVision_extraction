@@ -21,6 +21,16 @@ let skipArray = [
 ]
 
 async function main() {
+    try {
+        await db.checkConnection();
+    } catch (e) {
+        console.log(e);
+        console.log('Error: Unable to establish connection to database!');
+        console.log('Shuting down program...');
+        process.exit()
+    } finally {
+        console.log('Connection established to database!');
+    }
     let parents = (fh.checksIfFileExists('files/parents.json')) ? await fh.readFile('files/parents.json') : [];
     // Get nodes ether from file or from request from API.
     let nodes = (fh.checksIfFileExists()) ? await fh.readFile() : [await api.getNodes()]
@@ -71,7 +81,14 @@ async function main() {
             }
 
             if (!errorCode) {
-                db.add.entry(resContent, parent, resHTML)
+                try {
+                    db.add.entry(resContent, parent, resHTML)
+                } catch (e) {
+                    console.log(e);
+                    console.log('Error: Unable to establish connection to database!');
+                    console.log('Shuting down program...');
+                    process.exit()
+                }
             }
         // If headless isn't usable then fetch properties
         } else {
@@ -79,7 +96,13 @@ async function main() {
 
             // Add entry if properties is useable
             if (resProperties && resProperties.properties.URL) {
-                db.add.entryProperties(resProperties, parent)
+                try {
+                    db.add.entryProperties(resProperties, parent)
+                } catch (e) {
+                    console.log('Error: Unable to establish connection to database!');
+                    console.log('Shuting down program...');
+                    process.exit()
+                }
             }
         }
         // Saves current nodes to file

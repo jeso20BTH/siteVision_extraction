@@ -23,6 +23,8 @@ const config = require('./config.json');
 // Setup tha database element
 const pool = mariadb.createPool(config);
 
+
+
 let database = {
     /**
      * Talks with the database, through the pool-element and returns the response.
@@ -43,6 +45,42 @@ let database = {
       	     if (conn) conn.end();
         }
         return rows;
+    },
+
+    /**
+     * Check if connection is established with correct tables. If not it raises error.
+     * @returns  {void}
+     */
+    checkConnection: async () => {
+        let correctTables = [
+            'child',
+            'created_by',
+            'last_modified_by',
+            'last_published_by',
+            'page',
+            'published_by',
+            'user'
+        ]
+
+        let tables;
+
+        try {
+            tables = await database.get.tables();
+        } catch (e) {
+            throw `Error: ${e.text}\n    Code: ${e.code}\n    SQLState: ${e.sqlState}\n    Errno:${e.errno}`
+        } finally {
+
+        }
+
+        if (tables.length <= 0) {
+            throw 'Error: Database tables missing!';
+        }
+
+        correctTables.forEach((item, i) => {
+            if (tables[i][`Tables_in_${config.database}`] !== item) {
+                throw `Error: Missing needed table ${item}`;
+            }
+        });
     },
 
     // An collection of SELECT requests to the database.
