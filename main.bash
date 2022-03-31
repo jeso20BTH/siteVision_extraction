@@ -107,7 +107,8 @@ function choice-1
     # Setup database
     echo 'Seting up the database..............................[6/8]'
     cd sql/
-    mariadb --user="$rootuser" --password="$rootpassword" <'00_setup_database.sql'
+    # mariadb --user="$rootuser" --password="$rootpassword" <'00_setup_database.sql'
+    mariadb --user="$rootuser" --password="$rootpassword" -e "SOURCE variables.sql; SOURCE 01_create_database.sql; use $database; SOURCE 02_add_user.sql; SOURCE 03_create_tables.sql;"
     cd ..
 
     # Generate file used for db-connection

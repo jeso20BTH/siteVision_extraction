@@ -69,7 +69,7 @@ let database = {
         } catch (e) {
             throw `Error: ${e.text}\n    Code: ${e.code}\n    SQLState: ${e.sqlState}\n    Errno:${e.errno}`
         } finally {
-
+            
         }
 
         if (tables.length <= 0) {
