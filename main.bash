@@ -30,8 +30,9 @@ function print-menu
     "  | 4:           Get all children parent connections |"
     "  | 5:                                 Get root node |"
     "  | 6:                                  Get all node |"
-    "  | 7:                              Remove node file |"
-    "  | 8:                           Remove config files |"
+    "  | 7:    Check if no duplicate exists in created_by |"
+    "  | 8:                              Remove node file |"
+    "  | 9:                           Remove config files |"
     "  +--------------------------------------------------+"
     "  |                     Commands                     |"
     "  +--------------------------------------------------+"
@@ -165,15 +166,25 @@ function choice-6
     sql-query "SELECT id, display_name,  parent_name, creation_date, publish_date FROM page;"
 }
 
-# Remove files that keep track of the nodes.
+# Get all nodes from page table.
 function choice-7
+{
+    if [ ! -e 'files/bash_config.data' ]; then
+        config-bash
+    fi
+
+    sql-query 'SELECT page_id, COUNT("page_id") AS antal FROM "last_modified_by" GROUP BY page_id HAVING antal > 1;'
+}
+
+# Remove files that keep track of the nodes.
+function choice-8
 {
     rm 'files/nodes.json'
     rm 'files/parents.json'
 }
 
 # Remove the config files
-function choice-8
+function choice-9
 {
     rm -f 'files/bash_config.data'
     rm -f 'sql/variables.sql'

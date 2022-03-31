@@ -18,7 +18,7 @@ CREATE TABLE page
 (
     id INT NOT NULL AUTO_INCREMENT,
     jcr_id VARCHAR(50) NOT NULL,
-    display_name VARCHAR(100),
+    display_name VARCHAR(500),
     parent_id VARCHAR(100),
     parent_name VARCHAR(300),
     uri VARCHAR(600),

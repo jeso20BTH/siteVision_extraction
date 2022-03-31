@@ -80,8 +80,14 @@ let apiHandler = {
      * @returns {boolean}                           Returns thetrue if node is root node.
      */
     isRootNode: async (nodeId) => {
-        let rootId = (await apiHandler.getNodes())[0].id;
-        return nodeId === rootId
+        let rootId
+        try {
+            let rootId = (await apiHandler.getNodes())[0].id;
+        } catch (e) {
+            return false
+        } finally {
+            return nodeId === rootId
+        }
     }
 }
 

@@ -69,7 +69,7 @@ let database = {
         } catch (e) {
             throw `Error: ${e.text}\n    Code: ${e.code}\n    SQLState: ${e.sqlState}\n    Errno:${e.errno}`
         } finally {
-            
+
         }
 
         if (tables.length <= 0) {
@@ -227,6 +227,14 @@ let database = {
                 }
 
                 return user.id;
+            },
+
+            by: async (table, data) => {
+                let row = database.get.oneFrom(table, {page_id: data[0]})
+
+                if (!row) {
+                    return await database.add.allColumnsTo(table, data)
+                }
             }
         },
 
@@ -240,29 +248,44 @@ let database = {
             // Add page and get its id
             let pageId = await database.add.ifNotExists.page(data, parent, html);
 
-            // Add users if not exists and get their ids
-            let createdById = await database.add.ifNotExists.user(
-                data.properties.createdBy.id,
-                data.properties.createdBy.properties
-            );
-            let publishedById = await database.add.ifNotExists.user(
-                data.properties.publishedBy.id,
-                data.properties.publishedBy.properties
-            );
-            let lastModifiedById = await database.add.ifNotExists.user(
-                data.properties.lastModifiedBy.id,
-                data.properties.lastModifiedBy.properties
-            );
-            let lastPublishedById = await database.add.ifNotExists.user(
-                data.properties.lastPublishedBy.id,
-                data.properties.lastPublishedBy.properties
-            );
 
-            // Add connection between users and pages
-            await database.add.allColumnsTo('created_by', [pageId, createdById]);
-            await database.add.allColumnsTo('published_by', [pageId, publishedById]);
-            await database.add.allColumnsTo('last_modified_by', [pageId, lastModifiedById]);
-            await database.add.allColumnsTo('last_published_by', [pageId, lastPublishedById]);
+            if (data.properties.createdBy) {
+                // Add users if not exists and get their ids
+                let createdById = await database.add.ifNotExists.user(
+                    data.properties.createdBy.id,
+                    data.properties.createdBy.properties
+                );
+
+                // Add connection between users and pages
+                await database.add.ifNotExists.by('created_by', [pageId, createdById]);
+            }
+
+            if (data.properties.publishedBy) {
+                let publishedById = await database.add.ifNotExists.user(
+                    data.properties.publishedBy.id,
+                    data.properties.publishedBy.properties
+                );
+
+                await database.add.ifNotExists.by('published_by', [pageId, publishedById]);
+            }
+
+            if (data.properties.lastModifiedBy) {
+                let lastModifiedById = await database.add.ifNotExists.user(
+                    data.properties.lastModifiedBy.id,
+                    data.properties.lastModifiedBy.properties
+                );
+
+                await database.add.ifNotExists.by('last_modified_by', [pageId, lastModifiedById]);
+            }
+
+            if (data.properties.lastPublishedBy) {
+                let lastPublishedById = await database.add.ifNotExists.user(
+                    data.properties.lastPublishedBy.id,
+                    data.properties.lastPublishedBy.properties
+                );
+
+                await database.add.ifNotExists.by('last_published_by', [pageId, lastPublishedById]);
+            }
 
             data.nodes.forEach(async (child) => {
                 await database.add.allColumnsTo('child', [
@@ -284,16 +307,25 @@ let database = {
             let pageId = await database.add.ifNotExists.page(data, parent);
 
             // Add users if not exists and get their ids
-            let createdById = await database.add.ifNotExists.user(data.properties.createdBy);
-            let publishedById = await database.add.ifNotExists.user(data.properties.publishedBy);
-            let lastModifiedById = await database.add.ifNotExists.user(data.properties.lastModifiedBy);
-            let lastPublishedById = await database.add.ifNotExists.user(data.properties.lastPublishedBy);
+            if (data.properties.createdBy) {
+                let createdById = await database.add.ifNotExists.user(data.properties.createdBy);
+                await database.add.ifNotExists.by('created_by', [pageId, createdById]);
+            }
 
-            // Add connection between users and pages
-            await database.add.allColumnsTo('created_by', [pageId, createdById]);
-            await database.add.allColumnsTo('published_by', [pageId, publishedById]);
-            await database.add.allColumnsTo('last_modified_by', [pageId, lastModifiedById]);
-            await database.add.allColumnsTo('last_published_by', [pageId, lastPublishedById]);
+            if (data.properties.publishedBy) {
+                let publishedById = await database.add.ifNotExists.user(data.properties.publishedBy);
+                await database.add.ifNotExists.by('published_by', [pageId, publishedById]);
+            }
+
+            if (data.properties.lastModifiedBy) {
+                let lastModifiedById = await database.add.ifNotExists.user(data.properties.lastModifiedBy);
+                await database.add.ifNotExists.by('last_modified_by', [pageId, lastModifiedById]);
+            }
+
+            if (data.properties.lastPublishedBy) {
+                let lastPublishedById = await database.add.ifNotExists.user(data.properties.lastPublishedBy);
+                await database.add.ifNotExists.by('last_published_by', [pageId, lastPublishedById]);
+            }
         }
     },
 }
