@@ -230,7 +230,7 @@ let database = {
             },
 
             by: async (table, data) => {
-                let row = database.get.oneFrom(table, {page_id: data[0]})
+                let row = await database.get.oneFrom(table, {page_id: data[0]})
 
                 if (!row) {
                     return await database.add.allColumnsTo(table, data)
