@@ -60,7 +60,7 @@ async function main() {
             continue;
         }
 
-        // console.log(`Current node:   ${currentNode.name}`);
+        console.log(`Current node:   ${currentNode.name}`);
         let resNodes = await api.getNodes(currentNode.id);
         let resContent = await api.getHeadless(currentNode.id);
 
