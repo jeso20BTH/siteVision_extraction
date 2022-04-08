@@ -35,6 +35,10 @@ async function main() {
     // Get nodes ether from file or from request from API.
     let nodes = (fh.checksIfFileExists()) ? await fh.readFile() : [await api.getNodes()]
 
+    let nodeCounter = 0;
+    let noHTMLCounter = 0;
+
+
     while (nodes.length > 0) {
         let curNodeIndex = nodes.length - 1;
         let parent = (parents.length > 0) ? parents[parents.length - 1] : {
@@ -56,7 +60,7 @@ async function main() {
             continue;
         }
 
-        console.log(`Current node:   ${currentNode.name}`);
+        // console.log(`Current node:   ${currentNode.name}`);
         let resNodes = await api.getNodes(currentNode.id);
         let resContent = await api.getHeadless(currentNode.id);
 
@@ -69,22 +73,53 @@ async function main() {
             })
         }
 
-        // Checks if headless is useable
-        if (resContent && resContent.properties.URL) {
-            let errorCode, resHTML;
-            try {
-                resHTML = await api.getHTML(resContent.properties.URL);
-            } catch (err) {
-                if (err.response) {
-                    errorCode = err.response.status;
-                }
-            }
+        let resProperties;
 
-            if (!errorCode) {
+        // Checks if headless is useable
+        if (resContent) {
+            if (resContent.properties.published) {
+                let resHTML, errorHandler;
+
+                //Tries to fetch HTML-page
                 try {
-                    db.add.entry(resContent, parent, resHTML)
+                    resHTML = await api.getHTML(resContent.properties.URL);
                 } catch (e) {
-                    console.log(e);
+                    errorHandler = e
+                    // If fetch is unsuccessful add without HTML code
+                    try {
+                        await db.add.entry(resContent, parent)
+                        nodeCounter++;
+                        noHTMLCounter++;
+                    } catch (e) {
+                        console.log(`Nodes: ${nodeCounter}`, `Nodes with no HTML: ${noHTMLCounter}`);
+                        console.log('Error: Unable to establish connection to database!');
+                        console.log('Shuting down program...');
+                        process.exit()
+                    }
+                } finally {
+                    // If successful add with HTML code.
+                    if (!errorHandler) {
+                        try {
+                            await db.add.entry(resContent, parent, resHTML)
+                            nodeCounter++;
+                        } catch (e) {
+                            console.log(`Nodes: ${nodeCounter}`, `Nodes with no HTML: ${noHTMLCounter}`);
+                            console.log('Error: Unable to establish connection to database!');
+                            console.log('Shuting down program...');
+                            process.exit()
+                        }
+                    }
+
+                    errorHandler = null;
+                }
+            // If page is not published no fetch of page is needed.
+            } else {
+                try {
+                    await db.add.entry(resContent, parent)
+                    nodeCounter++;
+                    noHTMLCounter++;
+                } catch (e) {
+                    console.log(`Nodes: ${nodeCounter}`, `Nodes with no HTML: ${noHTMLCounter}`);
                     console.log('Error: Unable to establish connection to database!');
                     console.log('Shuting down program...');
                     process.exit()
@@ -92,13 +127,18 @@ async function main() {
             }
         // If headless isn't usable then fetch properties
         } else {
-            let resProperties = await api.getProperties(currentNode.id);
-
+            // Fetch properties
+            while (!resProperties) {
+                resProperties = await api.getProperties(currentNode.id);
+            }
             // Add entry if properties is useable
-            if (resProperties && resProperties.properties.URL) {
+            if (resProperties) {
                 try {
-                    db.add.entryProperties(resProperties, parent)
+                    nodeCounter++;
+                    await db.add.entryProperties(resProperties, parent, resNodes)
                 } catch (e) {
+                    console.log(e);
+                    console.log(`Nodes: ${nodeCounter}`, `Nodes with no HTML: ${noHTMLCounter}`);
                     console.log('Error: Unable to establish connection to database!');
                     console.log('Shuting down program...');
                     process.exit()
@@ -109,6 +149,10 @@ async function main() {
         await fh.saveToFile(nodes);
         await fh.saveToFile(parents, 'files/parents.json')
     }
+
+    console.log(`Nodes: ${nodeCounter}`, `Nodes with no HTML: ${noHTMLCounter}`);
+    let createdNodes = await db.count.page();
+    console.log(`Nodes in database: ${createdNodes}`);
 
     process.exit()
 }

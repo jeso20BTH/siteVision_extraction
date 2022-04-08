@@ -54,10 +54,9 @@ let apiHandler = {
      * @returns {object}                            Returns the properties for URI.
      */
     getProperties: async (uri) => {
-        let res = {nodes: [], contentNodes: []};
-
+        let res;
         try {
-            res.properties = (await axios.get(`${apiHandler.baseURL}${uri}/properties`)).data;
+            res = (await axios.get(`${apiHandler.baseURL}${uri}/properties`)).data;
         } catch (error) {
             res = undefined;
         }

@@ -113,8 +113,8 @@ COLLATE utf8_swedish_ci
 CREATE TABLE child
 (
     parent_id INT NOT NULL,
-    parent_jcr_id VARCHAR(50) NOT NULL,
-    child_id VARCHAR(50) NOT NULL,
+    parent_jcr_id VARCHAR(200) NOT NULL,
+    child_id VARCHAR(200) NOT NULL,
 
     FOREIGN KEY (parent_id) REFERENCES page(id)
 )

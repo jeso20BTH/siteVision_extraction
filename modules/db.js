@@ -23,6 +23,7 @@ const config = require('./config.json');
 // Setup tha database element
 const pool = mariadb.createPool(config);
 
+let counter = 0;
 
 
 let database = {
@@ -180,7 +181,7 @@ let database = {
              * @returns {number}                    Returns the id of the page added.
              */
             page: async (data, parent, html='') => {
-                let page = await database.get.oneFrom('page', { uri: data.properties.URI});
+                let page = await database.get.oneFrom('page', { jcr_id: data.properties['jcr:uuid']});
 
                 if (!page) {
                     await database.add.certainColumnsTo(
@@ -202,7 +203,11 @@ let database = {
                         }
                     )
 
-                    page = await database.get.oneFrom('page', { uri: data.properties.URI});
+                    page = await database.get.oneFrom('page', { jcr_id: data.properties['jcr:uuid']});
+                } else {
+                    counter++;
+                    console.log(`${page.id} - ${data.properties.displayName}`);
+                    console.log(`Already added: ${counter}`);
                 }
 
                 return page.id;
@@ -211,7 +216,7 @@ let database = {
             /**
              * Add an row to the user table if it not exists.
              * @param   {string}    id              The jcr:uuid of the user.
-             * @param   {object}    [data=null]       The data you want to add.
+             * @param   {object}    [data=null]     The data you want to add.
              * @returns {number}                    Returns the id of the page added.
              */
             user: async (id, data=null) => {
@@ -229,11 +234,31 @@ let database = {
                 return user.id;
             },
 
+            /**
+             * Add an row to one of the by tables if it does not exists.
+             * @param   {string}    table           The table to add data to.
+             * @param   {list}      data            The data to add to that table.
+             * @returns {void}
+             */
             by: async (table, data) => {
                 let row = await database.get.oneFrom(table, {page_id: data[0]})
 
                 if (!row) {
-                    return await database.add.allColumnsTo(table, data)
+                    await database.add.allColumnsTo(table, data)
+                }
+            },
+
+            /**
+             * Add an row to the child tables if it does not exists.
+             * @param   {number}    id              The id of the child you want to add.
+             * @param   {list}      data            The data to add.
+             * @returns {void}
+             */
+            child: async (id, data) => {
+                let row = await database.get.oneFrom('child', {child_id: id})
+
+                if (!row) {
+                    await database.add.allColumnsTo('child', data)
                 }
             }
         },
@@ -241,6 +266,7 @@ let database = {
         /**
          * Add an row to all tables needed to construct an page, including page, user and connection tables.
          * @param   {object}    data            The data you want to add.
+         * @param   {object}    parent          The parent of the node to add.
          * @param   {object}    [html='']       The html-code of the page.
          * @returns {void}
          */
@@ -288,11 +314,16 @@ let database = {
             }
 
             data.nodes.forEach(async (child) => {
-                await database.add.allColumnsTo('child', [
-                    pageId,
-                    data.properties['jcr:uuid'],
-                    child.id
-                ]);
+                try {
+                    await database.add.ifNotExists.child(child.id, [
+                        pageId,
+                        data.properties['jcr:uuid'],
+                        child.id
+                    ]);
+                } catch (e) {
+                    console.log('Entry');
+                    console.log(data.properties);
+                }
             })
         },
 
@@ -300,34 +331,63 @@ let database = {
          * Add an row to all tables needed to construct an page, including page, user and connection tables when
          * headless is unusable.
          * @param   {object}    data            The data you want to add.
+         * @param   {object}    parent          The parent of the node to add.
+         * @param   {object}    nodes           The child nodes of the node to add.
          * @returns {void}
          */
-        entryProperties: async (data, parent) => {
+        entryProperties: async (data, parent, nodes) => {
             // Add page and get its id
-            let pageId = await database.add.ifNotExists.page(data, parent);
+            let pageId = await database.add.ifNotExists.page({properties: data}, parent);
 
             // Add users if not exists and get their ids
-            if (data.properties.createdBy) {
-                let createdById = await database.add.ifNotExists.user(data.properties.createdBy);
+            if (data.createdBy) {
+                let createdById = await database.add.ifNotExists.user(data.createdBy);
                 await database.add.ifNotExists.by('created_by', [pageId, createdById]);
             }
 
-            if (data.properties.publishedBy) {
-                let publishedById = await database.add.ifNotExists.user(data.properties.publishedBy);
+            if (data.publishedBy) {
+                let publishedById = await database.add.ifNotExists.user(data.publishedBy);
                 await database.add.ifNotExists.by('published_by', [pageId, publishedById]);
             }
 
-            if (data.properties.lastModifiedBy) {
-                let lastModifiedById = await database.add.ifNotExists.user(data.properties.lastModifiedBy);
+            if (data.lastModifiedBy) {
+                let lastModifiedById = await database.add.ifNotExists.user(data.lastModifiedBy);
                 await database.add.ifNotExists.by('last_modified_by', [pageId, lastModifiedById]);
             }
 
-            if (data.properties.lastPublishedBy) {
-                let lastPublishedById = await database.add.ifNotExists.user(data.properties.lastPublishedBy);
+            if (data.lastPublishedBy) {
+                let lastPublishedById = await database.add.ifNotExists.user(data.lastPublishedBy);
                 await database.add.ifNotExists.by('last_published_by', [pageId, lastPublishedById]);
             }
+
+            nodes.forEach(async (child) => {
+                try {
+                    await database.add.ifNotExists.child(child.id, [
+                        pageId,
+                        data['jcr:uuid'],
+                        child.id
+                    ]);
+
+                } catch (e) {
+                    console.log(e);
+                    console.log('Properties');
+                    console.log(data, pageId, child);
+                }
+            })
         }
     },
+    // Methods for counting in tables
+    count: {
+        /**
+         * Count the numbers of row in page table.
+         * @returns {number}                    Returns the number of rows in page table.
+         */
+        page: async () => {
+            let query = 'select count(id) as antal from page'
+            let res = await database.queryToDB(query);
+            return Number(res[0].antal)
+        }
+    }
 }
 
 module.exports = database;
